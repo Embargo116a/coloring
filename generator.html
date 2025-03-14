@@ -10,7 +10,7 @@
       display: grid;
       grid-gap: 1px;
       background-color: lightgray;
-      width: 450px;
+      width: 600px;
       height: 450px;
       box-sizing: border-box;
       margin-bottom: 10px;
@@ -85,12 +85,17 @@
     <br>
     <button onclick="copyGenCode()">복사</button>
   </div>
+  <br>
+  <div>
+    <a href="player.html">플레이어로 이동</a>
+  </div>
   
   <script>
     // 생성기 전용 변수
     let genBoardArray = [];
     let genRows = 15, genCols = 15;
-    const genBoardSize = 450;  // 보드 컨테이너 고정 크기(px)
+    const genBoardWidth = 600;  // 보드 컨테이너 고정 크기(px)
+    const genBoardHeight = 450;  // 보드 컨테이너 고정 크기(px)
     let genCurrentColor = "red"; // 초기 선택 색상
 
     // 새 보드 생성: 보드 배열을 목표색으로 초기화
@@ -115,8 +120,8 @@
       const gridGap = 1;  // grid-gap 값(px)
       const totalGapWidth = (genCols - 1) * gridGap;
       const totalGapHeight = (genRows - 1) * gridGap;
-      const cellWidth = (genBoardSize - totalGapWidth) / genCols;
-      const cellHeight = (genBoardSize - totalGapHeight) / genRows;
+      const cellWidth = (genBoardWidth - totalGapWidth) / genCols;
+      const cellHeight = (genBoardHeight - totalGapHeight) / genRows;
       
       boardDiv.style.gridTemplateColumns = `repeat(${genCols}, ${cellWidth}px)`;
       boardDiv.style.gridTemplateRows = `repeat(${genRows}, ${cellHeight}px)`;

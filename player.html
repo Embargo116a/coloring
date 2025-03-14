@@ -9,7 +9,7 @@
       display: grid;
       grid-gap: 1px;
       background-color: lightgray;
-      width: 450px;
+      width: 600px;
       height: 450px;
       box-sizing: border-box;
       margin-bottom: 10px;
@@ -49,6 +49,10 @@
     <br>
     <div id="playStatus"></div>
   </div>
+    <br>
+  <div>
+    <a href="generator.html">생성기로 이동</a>
+  </div>
 
   <script>
     // 플레이어 전용 변수
@@ -56,7 +60,8 @@
     let playBoardArray;
     let playRows, playCols, playTargetColor, playTargetMoves;
     let playChangeCount = 0;
-    const boardSize = 450; // 보드 컨테이너 고정 크기 (px)
+    const boardWidth = 600; // 보드 컨테이너 고정 크기 (px)
+    const boardHeight = 450; // 보드 컨테이너 고정 크기 (px)
     let playCurrentColor = null;
     let isAnimating = false; // 애니메이션 진행 중인지 체크
     
@@ -102,8 +107,8 @@
       const gridGap = 1; // grid-gap 값 (px)
       const totalGapWidth = (playCols - 1) * gridGap;
       const totalGapHeight = (playRows - 1) * gridGap;
-      const cellWidth = (boardSize - totalGapWidth) / playCols;
-      const cellHeight = (boardSize - totalGapHeight) / playRows;
+      const cellWidth = (boardWidth - totalGapWidth) / playCols;
+      const cellHeight = (boardHeight - totalGapHeight) / playRows;
       
       boardDiv.style.gridTemplateColumns = `repeat(${playCols}, ${cellWidth}px)`;
       boardDiv.style.gridTemplateRows = `repeat(${playRows}, ${cellHeight}px)`;
@@ -146,12 +151,6 @@
             updatePlayStatus(`축하합니다! 목표 횟수 ${playTargetMoves}회 이내 클리어 (총 ${playChangeCount}회)`);
           } else {
             updatePlayStatus(`모든 칸이 같아졌지만 목표 횟수 ${playTargetMoves}회를 초과했습니다 (총 ${playChangeCount}회)`);
-          }
-        } else {
-          if (playChangeCount > playTargetMoves) {
-            updatePlayStatus(`목표 횟수 ${playTargetMoves}회 초과했습니다! (총 ${playChangeCount}회)`);
-          } else {
-            updatePlayStatus(`${playCurrentColor}으로 변경되었습니다. 계속 진행하세요. (총 ${playChangeCount}회)`);
           }
         }
       });
