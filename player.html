@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>플레이어</title>
+  <style>
+    body { font-family: Arial, sans-serif; }
+    #playBoard {
+      display: grid;
+      grid-gap: 1px;
+      background-color: lightgray;
+      width: 450px;
+      height: 450px;
+      box-sizing: border-box;
+      margin-bottom: 10px;
+    }
+    .playCell {
+      box-sizing: border-box;
+      /* 애니메이션 효과 추가: 배경색 변경 시 부드럽게 전환 */
+      transition: background-color 0.5s ease;
+    }
+    .play-color-btn {
+      width: 60px;
+      height: 30px;
+      margin: 2px;
+      border: none;
+      cursor: pointer;
+    }
+    .play-color-btn.selected {
+      border: 3px solid black;
+    }
+  </style>
+</head>
+<body>
+  <h1>플레이어</h1>
+  <div>
+    <label>저장된 코드 입력:</label><br>
+    <textarea id="playCodeInput" cols="60" rows="5"></textarea><br>
+    <button onclick="loadPlayBoard()">불러오기</button>
+  </div>
+  <br>
+  <div id="playArea" style="display:none;">
+    <div id="playBoard"></div>
+    <br>
+    <!-- 색 선택 버튼 영역: 동적으로 생성 -->
+    <div id="playColorContainer">
+      <label>셀 색상 선택:</label>
+    </div>
+    <br>
+    <div id="playStatus"></div>
+  </div>
+    <br>
+  <div>
+    <a href="{{ url_for('generator') }}">생성기로 이동</a>
+  </div>
+
+  <script>
+    // 플레이어 전용 변수
+    let playBoardData;
+    let playBoardArray;
+    let playRows, playCols, playTargetColor, playTargetMoves;
+    let playChangeCount = 0;
+    const boardSize = 450; // 보드 컨테이너 고정 크기 (px)
+    let playCurrentColor = null;
+    let isAnimating = false; // 애니메이션 진행 중인지 체크
+    
+    function loadPlayBoard() {
+      const code = document.getElementById("playCodeInput").value.trim();
+      if (!code) {
+        alert("코드를 입력하세요.");
+        return;
+      }
+      try {
+        const decoded = atob(code);
+        playBoardData = JSON.parse(decoded);
+      } catch(e) {
+        alert("코드 디코딩 실패: " + e);
+        return;
+      }
+      playRows = playBoardData.rows;
+      playCols = playBoardData.cols;
+      // 저장된 target_color는 숫자 인덱스이므로, colors 배열을 이용해 실제 색상 문자열로 변환
+      playTargetColor = playBoardData.colors[ playBoardData.target_color ];
+      playTargetMoves = playBoardData.target_moves;
+      
+      // 보드 배열의 각 셀도 숫자 인덱스이므로, colors 배열을 이용해 실제 색상 문자열로 변환
+      playBoardArray = [];
+      for (let i = 0; i < playRows; i++) {
+        playBoardArray[i] = [];
+        for (let j = 0; j < playCols; j++) {
+          const idx = playBoardData.board[i][j];
+          playBoardArray[i][j] = playBoardData.colors[idx];
+        }
+      }
+      playChangeCount = 0;
+      playCurrentColor = null;
+      document.getElementById("playArea").style.display = "block";
+      drawPlayBoard();
+      renderPlayColorButtons();  // 동적으로 색 선택 버튼 생성
+      updatePlayStatus("색상 선택 후 보드를 클릭하세요.");
+    }
+    
+    // 플레이어 보드 그리기: 최초 한 번 그린 후, 애니메이션에서는 DOM 업데이트를 직접 진행합니다.
+    function drawPlayBoard() {
+      const boardDiv = document.getElementById("playBoard");
+      const gridGap = 1; // grid-gap 값 (px)
+      const totalGapWidth = (playCols - 1) * gridGap;
+      const totalGapHeight = (playRows - 1) * gridGap;
+      const cellWidth = (boardSize - totalGapWidth) / playCols;
+      const cellHeight = (boardSize - totalGapHeight) / playRows;
+      
+      boardDiv.style.gridTemplateColumns = `repeat(${playCols}, ${cellWidth}px)`;
+      boardDiv.style.gridTemplateRows = `repeat(${playRows}, ${cellHeight}px)`;
+      boardDiv.innerHTML = "";
+      for (let i = 0; i < playRows; i++) {
+        for (let j = 0; j < playCols; j++) {
+          const cell = document.createElement("div");
+          cell.className = "playCell";
+          cell.style.backgroundColor = playBoardArray[i][j];
+          cell.style.width = cellWidth + "px";
+          cell.style.height = cellHeight + "px";
+          cell.dataset.row = i;
+          cell.dataset.col = j;
+          cell.onclick = playCellClick;
+          boardDiv.appendChild(cell);
+        }
+      }
+    }
+    
+    // 플레이어 셀 클릭 및 애니메이션 flood fill 시작
+    function playCellClick(e) {
+      if (isAnimating) return; // 애니메이션 진행 중이면 무시
+      if (playCurrentColor === null) {
+        updatePlayStatus("먼저 색상을 선택하세요!");
+        return;
+      }
+      const i = parseInt(e.target.dataset.row);
+      const j = parseInt(e.target.dataset.col);
+      const orig = playBoardArray[i][j];
+      if (orig === playCurrentColor) {
+        updatePlayStatus("이미 선택한 색입니다.");
+        return;
+      }
+      playChangeCount++;
+      isAnimating = true;
+      playFloodFillAnimated(i, j, orig, playCurrentColor, function() {
+        isAnimating = false;
+        if (checkPlayWin()) {
+          if (playChangeCount <= playTargetMoves) {
+            updatePlayStatus(`축하합니다! 목표 횟수 ${playTargetMoves}회 이내 클리어 (총 ${playChangeCount}회)`);
+          } else {
+            updatePlayStatus(`모든 칸이 같아졌지만 목표 횟수 ${playTargetMoves}회를 초과했습니다 (총 ${playChangeCount}회)`);
+          }
+        } else {
+          if (playChangeCount > playTargetMoves) {
+            updatePlayStatus(`목표 횟수 ${playTargetMoves}회 초과했습니다! (총 ${playChangeCount}회)`);
+          } else {
+            updatePlayStatus(`${playCurrentColor}으로 변경되었습니다. 계속 진행하세요. (총 ${playChangeCount}회)`);
+          }
+        }
+      });
+    }
+    
+    // 큐 기반의 애니메이션 flood fill 함수
+    function playFloodFillAnimated(i, j, orig, repl, callback) {
+      let queue = [];
+      queue.push({i, j});
+      // 방문 여부 체크를 위한 2차원 배열
+      let visited = Array.from({length: playRows}, () => Array(playCols).fill(false));
+      visited[i][j] = true;
+      
+      function processNext() {
+        if (queue.length === 0) {
+          if (callback) callback();
+          return;
+        }
+        let cell = queue.shift();
+        playBoardArray[cell.i][cell.j] = repl;
+        // DOM의 해당 셀 업데이트 (애니메이션 효과는 CSS 전환에 의해 적용)
+        let boardDiv = document.getElementById("playBoard");
+        let index = cell.i * playCols + cell.j;
+        let cellDiv = boardDiv.children[index];
+        if (cellDiv) {
+          cellDiv.style.backgroundColor = repl;
+        }
+        // 상하좌우 이웃 셀 처리
+        const directions = [[-1,0],[1,0],[0,-1],[0,1]];
+        for (let d of directions) {
+          let ni = cell.i + d[0], nj = cell.j + d[1];
+          if (ni >= 0 && ni < playRows && nj >= 0 && nj < playCols && !visited[ni][nj] && playBoardArray[ni][nj] === orig) {
+            visited[ni][nj] = true;
+            queue.push({i: ni, j: nj});
+          }
+        }
+        // 다음 셀 처리 전 짧은 딜레이
+        setTimeout(processNext, 0.1);
+      }
+      processNext();
+    }
+    
+    function checkPlayWin() {
+      for (let i = 0; i < playRows; i++) {
+        for (let j = 0; j < playCols; j++) {
+          if (playBoardArray[i][j] !== playTargetColor) return false;
+        }
+      }
+      return true;
+    }
+    
+    function updatePlayStatus(msg) {
+      document.getElementById("playStatus").innerText =
+        `목표 색: ${playTargetColor} | 목표 횟수: ${playTargetMoves}회 | 변경 횟수: ${playChangeCount}\n${msg}`;
+    }
+    
+    // 동적으로 플레이어 색 선택 버튼 생성: 저장된 colors 배열을 사용
+    function renderPlayColorButtons() {
+      const container = document.getElementById("playColorContainer");
+      if (!container) return;
+      container.innerHTML = "<label>셀 색상 선택:</label>";
+      playBoardData.colors.forEach(color => {
+        const btn = document.createElement("button");
+        btn.className = "play-color-btn";
+        btn.style.backgroundColor = color;
+        btn.dataset.color = color;
+        btn.innerText = color;
+        btn.onclick = function() { setPlayCurrentColor(color, btn); };
+        container.appendChild(btn);
+      });
+      // 기본 선택: 첫 번째 버튼
+      const firstBtn = container.querySelector(".play-color-btn");
+      if (firstBtn) setPlayCurrentColor(firstBtn.dataset.color, firstBtn);
+    }
+    
+    // 플레이어 색 선택 버튼 클릭: 업데이트 및 버튼 강조
+    function setPlayCurrentColor(color, btn) {
+      playCurrentColor = color;
+      const btns = document.querySelectorAll(".play-color-btn");
+      btns.forEach(b => b.classList.remove("selected"));
+      btn.classList.add("selected");
+      updatePlayStatus(`선택한 색: ${color}. 이제 보드를 클릭하세요.`);
+    }
+  </script>
+</body>
+</html>

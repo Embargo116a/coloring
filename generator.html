@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>생성기</title>
+  <style>
+    body { font-family: Arial, sans-serif; }
+    /* 보드 컨테이너: 450×450px 고정 */
+    #genBoard {
+      display: grid;
+      grid-gap: 1px;
+      background-color: lightgray;
+      width: 450px;
+      height: 450px;
+      box-sizing: border-box;
+      margin-bottom: 10px;
+    }
+    .genCell { }
+    /* 기본 색 선택 버튼 스타일 */
+    .gen-color-btn {
+      width: 60px;
+      height: 30px;
+      margin: 2px;
+      border: none;
+      cursor: pointer;
+    }
+    .gen-color-btn.selected {
+      border: 3px solid black;
+    }
+    textarea { resize: none; }
+    /* 사용자 지정 버튼 스타일 */
+    #customColorBtn {
+      width: 100px;
+      height: 30px;
+      margin: 2px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <h1>생성기</h1>
+  <div>
+    <label>행 수: <input id="genRows" type="number" value="15" min="1"></label>
+    <label>열 수: <input id="genCols" type="number" value="15" min="1"></label>
+    <button onclick="newGenBoard()">새 보드 생성</button>
+  </div>
+  <br>
+  <!-- 색 선택 버튼 영역 -->
+  <div id="colorButtonContainer">
+    <label>셀 색상 선택: </label>
+    <button class="gen-color-btn" style="background-color:red;" data-color="red" onclick="setGenCurrentColor('red', this)">Red</button>
+    <button class="gen-color-btn" style="background-color:green;" data-color="green" onclick="setGenCurrentColor('green', this)">Green</button>
+    <button class="gen-color-btn" style="background-color:blue;" data-color="blue" onclick="setGenCurrentColor('blue', this)">Blue</button>
+    <button class="gen-color-btn" style="background-color:yellow;" data-color="yellow" onclick="setGenCurrentColor('yellow', this)">Yellow</button>
+    <button class="gen-color-btn" style="background-color:white; color:black;" data-color="white" onclick="setGenCurrentColor('white', this)">White</button>
+    <!-- 사용자 지정 색상 선택 버튼 -->
+    <button id="customColorBtn" onclick="openCustomColorPicker()">사용자 지정</button>
+  </div>
+  <!-- 숨겨진 색상 입력창 -->
+  <input type="color" id="customColorInput" style="display:none;" onchange="updateSelectedCustomColor(this.value)">
+  <br>
+  <div>
+    <button onclick="changeAllGenCells()">전체 색 변경</button>
+  </div>
+  <br>
+  <!-- 보드 영역 -->
+  <div id="genBoard"></div>
+  <br>
+  <div>
+    <label>목표 색: 
+      <select id="genTargetColor">
+        <option value="red" style="color:red;">Red</option>
+        <option value="green" style="color:green;">Green</option>
+        <option value="blue" style="color:blue;">Blue</option>
+        <option value="yellow" style="color:yellow;">Yellow</option>
+        <option value="white" style="color:black;">White</option>
+      </select>
+    </label>
+    <label>목표 횟수: <input id="genTargetMoves" type="number" value="4" min="1"></label>
+    <button onclick="saveGenBoard()">저장</button>
+  </div>
+  <br>
+  <div>
+    <textarea id="genSavedCode" cols="60" rows="5" readonly></textarea>
+    <br>
+    <button onclick="copyGenCode()">복사</button>
+  </div>
+  <br>
+  <div>
+    <a href="{{ url_for('player') }}">플레이어로 이동</a>
+  </div>
+  
+  <script>
+    // 생성기 전용 변수
+    let genBoardArray = [];
+    let genRows = 15, genCols = 15;
+    const genBoardSize = 450;  // 보드 컨테이너 고정 크기(px)
+    let genCurrentColor = "red"; // 초기 선택 색상
+
+    // 새 보드 생성: 보드 배열을 목표색으로 초기화
+    function newGenBoard() {
+      genRows = parseInt(document.getElementById("genRows").value);
+      genCols = parseInt(document.getElementById("genCols").value);
+      const targetColor = document.getElementById("genTargetColor").value;
+
+      genBoardArray = [];
+      for (let i = 0; i < genRows; i++) {
+        genBoardArray[i] = [];
+        for (let j = 0; j < genCols; j++) {
+          genBoardArray[i][j] = targetColor;
+        }
+      }
+      drawGenBoard();
+    }
+    
+    // 보드 그리기: 셀 크기를 (450px - gap) ÷ (행 또는 열 수)로 계산
+    function drawGenBoard() {
+      const boardDiv = document.getElementById("genBoard");
+      const gridGap = 1;  // grid-gap 값(px)
+      const totalGapWidth = (genCols - 1) * gridGap;
+      const totalGapHeight = (genRows - 1) * gridGap;
+      const cellWidth = (genBoardSize - totalGapWidth) / genCols;
+      const cellHeight = (genBoardSize - totalGapHeight) / genRows;
+      
+      boardDiv.style.gridTemplateColumns = `repeat(${genCols}, ${cellWidth}px)`;
+      boardDiv.style.gridTemplateRows = `repeat(${genRows}, ${cellHeight}px)`;
+      boardDiv.innerHTML = "";
+      for (let i = 0; i < genRows; i++) {
+        for (let j = 0; j < genCols; j++) {
+          const cell = document.createElement("div");
+          cell.className = "genCell";
+          cell.style.backgroundColor = genBoardArray[i][j];
+          cell.style.width = cellWidth + "px";
+          cell.style.height = cellHeight + "px";
+          cell.dataset.row = i;
+          cell.dataset.col = j;
+          cell.onclick = genCellClick;
+          cell.onmouseover = function(e) {
+            if (e.buttons === 1) {
+              genCellClick(e);
+            }
+          };
+          boardDiv.appendChild(cell);
+        }
+      }
+    }
+    
+    // 셀 클릭: 해당 셀의 색상을 현재 선택 색으로 변경
+    function genCellClick(e) {
+      const i = e.target.dataset.row;
+      const j = e.target.dataset.col;
+      genBoardArray[i][j] = genCurrentColor;
+      e.target.style.backgroundColor = genCurrentColor;
+    }
+    
+    // 기본 색 버튼 클릭: 현재 선택 색 업데이트 및 버튼 강조
+    function setGenCurrentColor(color, btn) {
+      genCurrentColor = color;
+      const btns = document.querySelectorAll(".gen-color-btn");
+      btns.forEach(b => b.classList.remove("selected"));
+      btn.classList.add("selected");
+    }
+    
+    // 사용자 지정 버튼 클릭: 숨겨진 색상 입력창 활성화
+    function openCustomColorPicker() {
+      document.getElementById("customColorInput").click();
+    }
+    
+    // 색상 입력창 변경 시: 현재 선택된 기본 버튼의 색상을 업데이트하고, 보드에 반영
+    function updateSelectedCustomColor(newColor) {
+      // 이전 선택 색상을 가져옴
+      const oldColor = genCurrentColor;
+      // 현재 선택된 버튼 업데이트 (만약 현재 선택 버튼이 있다면)
+      const btns = document.querySelectorAll(".gen-color-btn");
+      let targetBtn = null;
+      btns.forEach(btn => {
+        if (btn.classList.contains("selected") && btn.dataset.color === oldColor) {
+          targetBtn = btn;
+        }
+      });
+      if (targetBtn) {
+        // 버튼의 배경색, 텍스트, data-color 업데이트
+        targetBtn.style.backgroundColor = newColor;
+        targetBtn.innerText = newColor;
+        targetBtn.dataset.color = newColor;
+      }
+      // 현재 선택 색을 새 색상으로 변경
+      genCurrentColor = newColor;
+      // 보드 배열에서 기존 색(oldColor)을 새 색(newColor)로 업데이트
+      for (let i = 0; i < genRows; i++) {
+        for (let j = 0; j < genCols; j++) {
+          if (genBoardArray[i][j] === oldColor) {
+            genBoardArray[i][j] = newColor;
+          }
+        }
+      }
+      drawGenBoard();
+      // 목표 색 <select> 옵션 업데이트: 기존 옵션 중 value가 oldColor인 옵션을 newColor로 변경
+      const targetSelect = document.getElementById("genTargetColor");
+      for (let i = 0; i < targetSelect.options.length; i++) {
+        if (targetSelect.options[i].value === oldColor) {
+          targetSelect.options[i].value = newColor;
+          targetSelect.options[i].text = newColor;
+          // 업데이트 색상 스타일: white인 경우 텍스트 색을 black로 설정
+          targetSelect.options[i].style.color = (newColor === "white") ? "black" : newColor;
+        }
+      }
+    }
+    
+    // 전체 색 변경: 보드의 모든 셀을 현재 선택 색으로 변경
+    function changeAllGenCells() {
+      for (let i = 0; i < genRows; i++) {
+        for (let j = 0; j < genCols; j++) {
+          genBoardArray[i][j] = genCurrentColor;
+        }
+      }
+      drawGenBoard();
+    }
+    
+function saveGenBoard() {
+  const targetColorStr = document.getElementById("genTargetColor").value;
+  const targetMoves = parseInt(document.getElementById("genTargetMoves").value);
+
+  // 📌 현재 셀 색상 선택 버튼들의 색을 가져와 colorArray 동적 생성
+  let colorArray = [];
+  document.querySelectorAll(".gen-color-btn").forEach(btn => {
+    colorArray.push(btn.dataset.color);
+  });
+
+  // 📌 보드 배열을 숫자 배열로 변환 (각 색상의 인덱스를 저장)
+  const numericBoard = [];
+  for (let i = 0; i < genRows; i++) {
+    numericBoard[i] = [];
+    for (let j = 0; j < genCols; j++) {
+      numericBoard[i][j] = colorArray.indexOf(genBoardArray[i][j]);
+    }
+  }
+
+  // 📌 목표 색상도 색 배열 내 인덱스로 저장
+  const targetColor = colorArray.indexOf(targetColorStr);
+
+  // 📌 저장할 JSON 데이터 생성
+  const boardData = {
+    rows: genRows,
+    cols: genCols,
+    target_color: targetColor,  // 목표 색상 (숫자 인덱스)
+    target_moves: targetMoves,   // 목표 횟수
+    board: numericBoard,         // 숫자로 변환된 보드 배열
+    colors: colorArray           // 색상 배열 (해당 숫자를 색상으로 변환할 때 사용)
+  };
+
+  // 📌 JSON → Base64 인코딩 후 저장
+  const jsonStr = JSON.stringify(boardData);
+  const encodedStr = btoa(jsonStr);
+  document.getElementById("genSavedCode").value = encodedStr;
+}
+    
+    // 저장된 코드 복사
+    function copyGenCode() {
+      const savedCode = document.getElementById("genSavedCode");
+      savedCode.select();
+      document.execCommand("copy");
+      alert("저장된 코드가 복사되었습니다.");
+    }
+    
+    newGenBoard();
+    // 초기 선택 색상 버튼 강조 설정
+    const initialGenBtn = document.querySelector(".gen-color-btn[data-color='red']");
+    if (initialGenBtn) initialGenBtn.classList.add("selected");
+  </script>
+</body>
+</html>
