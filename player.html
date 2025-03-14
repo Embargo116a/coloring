@@ -129,33 +129,42 @@
     }
     
     // 플레이어 셀 클릭 및 애니메이션 flood fill 시작
-    function playCellClick(e) {
-      if (isAnimating) return; // 애니메이션 진행 중이면 무시
-      if (playCurrentColor === null) {
-        updatePlayStatus("먼저 색상을 선택하세요!");
-        return;
+function playCellClick(e) {
+  if (isAnimating) return; // 애니메이션 진행 중이면 무시
+  if (playCurrentColor === null) {
+    updatePlayStatus("먼저 색상을 선택하세요!");
+    return;
+  }
+  const i = parseInt(e.target.dataset.row);
+  const j = parseInt(e.target.dataset.col);
+  const orig = playBoardArray[i][j];
+  if (orig === playCurrentColor) {
+    updatePlayStatus("이미 선택한 색입니다.");
+    return;
+  }
+  // 변경 횟수를 즉시 증가시키고 상태 업데이트
+  playChangeCount++;
+  updatePlayStatus(`${playCurrentColor}으로 변경 중... (총 ${playChangeCount}회)`);
+  
+  isAnimating = true;
+  playFloodFillAnimated(i, j, orig, playCurrentColor, function() {
+    isAnimating = false;
+    if (checkPlayWin()) {
+      if (playChangeCount <= playTargetMoves) {
+        updatePlayStatus(`축하합니다! 목표 횟수 ${playTargetMoves}회 이내 클리어 (총 ${playChangeCount}회)`);
+      } else {
+        updatePlayStatus(`모든 칸이 같아졌지만 목표 횟수 ${playTargetMoves}회를 초과했습니다 (총 ${playChangeCount}회)`);
       }
-      const i = parseInt(e.target.dataset.row);
-      const j = parseInt(e.target.dataset.col);
-      const orig = playBoardArray[i][j];
-      if (orig === playCurrentColor) {
-        updatePlayStatus("이미 선택한 색입니다.");
-        return;
+    } else {
+      if (playChangeCount > playTargetMoves) {
+        updatePlayStatus(`목표 횟수 ${playTargetMoves}회 초과했습니다! (총 ${playChangeCount}회)`);
+      } else {
+        updatePlayStatus(`${playCurrentColor}으로 변경되었습니다. 계속 진행하세요. (총 ${playChangeCount}회)`);
       }
-      playChangeCount++;
-      isAnimating = true;
-      playFloodFillAnimated(i, j, orig, playCurrentColor, function() {
-        isAnimating = false;
-        if (checkPlayWin()) {
-          if (playChangeCount <= playTargetMoves) {
-            updatePlayStatus(`축하합니다! 목표 횟수 ${playTargetMoves}회 이내 클리어 (총 ${playChangeCount}회)`);
-          } else {
-            updatePlayStatus(`모든 칸이 같아졌지만 목표 횟수 ${playTargetMoves}회를 초과했습니다 (총 ${playChangeCount}회)`);
-          }
-        }
-      });
     }
-    
+  });
+}
+
     // 큐 기반의 애니메이션 flood fill 함수
     function playFloodFillAnimated(i, j, orig, repl, callback) {
       let queue = [];
@@ -202,10 +211,12 @@
       return true;
     }
     
-    function updatePlayStatus(msg) {
-      document.getElementById("playStatus").innerText =
-        `목표 색: ${playTargetColor} | 목표 횟수: ${playTargetMoves}회 | 변경 횟수: ${playChangeCount}\n${msg}`;
-    }
+function updatePlayStatus(msg) {
+  // 배경색이 white인 경우 텍스트가 보이도록 텍스트 색상을 black으로 지정
+  const textColor = (playTargetColor.toLowerCase() === "white") ? "black" : "white";
+  document.getElementById("playStatus").innerHTML =
+    `목표 색: <span style="background-color: ${playTargetColor}; color: ${textColor}; padding: 2px 5px;">${playTargetColor}</span> | 목표 횟수: ${playTargetMoves}회 | 변경 횟수: ${playChangeCount}<br>${msg}`;
+}
     
     // 동적으로 플레이어 색 선택 버튼 생성: 저장된 colors 배열을 사용
     function renderPlayColorButtons() {

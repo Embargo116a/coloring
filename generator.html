@@ -48,11 +48,12 @@
   <!-- 색 선택 버튼 영역 -->
   <div id="colorButtonContainer">
     <label>셀 색상 선택: </label>
-    <button class="gen-color-btn" style="background-color:red;" data-color="red" onclick="setGenCurrentColor('red', this)">Red</button>
-    <button class="gen-color-btn" style="background-color:green;" data-color="green" onclick="setGenCurrentColor('green', this)">Green</button>
-    <button class="gen-color-btn" style="background-color:blue;" data-color="blue" onclick="setGenCurrentColor('blue', this)">Blue</button>
-    <button class="gen-color-btn" style="background-color:yellow;" data-color="yellow" onclick="setGenCurrentColor('yellow', this)">Yellow</button>
-    <button class="gen-color-btn" style="background-color:white; color:black;" data-color="white" onclick="setGenCurrentColor('white', this)">White</button>
+    <button class="gen-color-btn" style="background-color:red;" data-color="red" onclick="setGenCurrentColor(this)">Red</button>
+<button class="gen-color-btn" style="background-color:green;" data-color="green" onclick="setGenCurrentColor(this)">Green</button>
+<button class="gen-color-btn" style="background-color:blue;" data-color="blue" onclick="setGenCurrentColor(this)">Blue</button>
+<button class="gen-color-btn" style="background-color:yellow;" data-color="yellow" onclick="setGenCurrentColor(this)">Yellow</button>
+<button class="gen-color-btn" style="background-color:white; color:black;" data-color="white" onclick="setGenCurrentColor(this)">White</button>
+
     <!-- 사용자 지정 색상 선택 버튼 -->
     <button id="customColorBtn" onclick="openCustomColorPicker()">사용자 지정</button>
   </div>
@@ -154,13 +155,17 @@
       e.target.style.backgroundColor = genCurrentColor;
     }
     
-    // 기본 색 버튼 클릭: 현재 선택 색 업데이트 및 버튼 강조
-    function setGenCurrentColor(color, btn) {
-      genCurrentColor = color;
-      const btns = document.querySelectorAll(".gen-color-btn");
-      btns.forEach(b => b.classList.remove("selected"));
-      btn.classList.add("selected");
-    }
+function setGenCurrentColor(btn) {
+  // 버튼의 data-color 속성에서 색상을 가져옴
+  const color = btn.getAttribute("data-color");
+  genCurrentColor = color;  // 선택한 색상을 변수에 저장
+
+  // 선택된 버튼 강조 업데이트
+  const btns = document.querySelectorAll(".gen-color-btn");
+  btns.forEach(b => b.classList.remove("selected"));
+  btn.classList.add("selected");
+}
+
     
     // 사용자 지정 버튼 클릭: 숨겨진 색상 입력창 활성화
     function openCustomColorPicker() {
